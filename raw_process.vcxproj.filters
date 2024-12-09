@@ -18,75 +18,9 @@
     <ClCompile Include="raw_process.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="ob.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="isp_gain.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="demosaic.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="r2y.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="y2r.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ccm.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="awb.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ygamma.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="rgbgamma.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ltm.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="sharp.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="raw_process.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ob.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="isp_gain.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="demosaic.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="r2y.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="y2r.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ccm.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="awb.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ygamma.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="rgbgamma.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ltm.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="sharp.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

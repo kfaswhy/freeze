@@ -142,32 +142,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="awb.cpp" />
-    <ClCompile Include="ccm.cpp" />
-    <ClCompile Include="demosaic.cpp" />
-    <ClCompile Include="isp_gain.cpp" />
-    <ClCompile Include="ltm.cpp" />
-    <ClCompile Include="ob.cpp" />
-    <ClCompile Include="r2y.cpp" />
     <ClCompile Include="raw_process.cpp" />
-    <ClCompile Include="rgbgamma.cpp" />
-    <ClCompile Include="sharp.cpp" />
-    <ClCompile Include="y2r.cpp" />
-    <ClCompile Include="ygamma.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="awb.h" />
-    <ClInclude Include="ccm.h" />
-    <ClInclude Include="demosaic.h" />
-    <ClInclude Include="isp_gain.h" />
-    <ClInclude Include="ltm.h" />
-    <ClInclude Include="ob.h" />
-    <ClInclude Include="r2y.h" />
     <ClInclude Include="raw_process.h" />
-    <ClInclude Include="rgbgamma.h" />
-    <ClInclude Include="sharp.h" />
-    <ClInclude Include="y2r.h" />
-    <ClInclude Include="ygamma.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
