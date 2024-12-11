@@ -82,6 +82,7 @@ int main()
 	vector<Mat> images;
 
 	// 读取一系列图片，保存到矢量容器中
+#if 0
 	images.push_back(imread("data\\2.bmp"));
 	images.push_back(imread("data\\3.bmp"));
 	images.push_back(imread("data\\4.bmp"));
@@ -99,6 +100,23 @@ int main()
 	images.push_back(imread("data\\16.bmp"));
 	images.push_back(imread("data\\17.bmp"));
 	images.push_back(imread("data\\18.bmp"));
+#endif
+
+#if 1
+	images.push_back(imread("data2\\1.bmp"));
+	images.push_back(imread("data2\\2.bmp"));
+	images.push_back(imread("data2\\3.bmp"));
+	images.push_back(imread("data2\\4.bmp"));
+	images.push_back(imread("data2\\5.bmp"));
+	images.push_back(imread("data2\\6.bmp"));
+	images.push_back(imread("data2\\7.bmp"));
+	images.push_back(imread("data2\\8.bmp"));
+	images.push_back(imread("data2\\9.bmp"));
+	images.push_back(imread("data2\\10.bmp"));
+	images.push_back(imread("data2\\11.bmp"));
+
+#endif
+
 
 	Mat result; // 用于存储冻结效果图
 	clock_t start = clock(); // 开始计时
@@ -115,152 +133,6 @@ int main()
 }
 
 
-RGB* raw2rgb(U16* raw, IMG_CONTEXT context, G_CONFIG cfg) {
-    // 获取图像的宽高和 Bayer Pattern
-    U16 width = context.width;
-    U16 height = context.height;
-    BayerPattern pattern = (BayerPattern)cfg.pattern;
-    ByteOrder order = (ByteOrder)cfg.order;
-    const U8 bit_depth = cfg.bit;
-    const int bit_shift = cfg.bit - 8;
-
-    // 确定最大有效值
-    U16 max_val = (1 << bit_depth) - 1;
-
-    // 确保原始数据按大小端顺序处理
-    for (U32 i = 0; i < width * height; i++) {
-        if (order == LITTLE_ENDIAN) {
-            raw[i] = raw[i] & max_val; // 提取低 bit_depth 位
-        }
-        else if (order == BIG_ENDIAN) {
-            raw[i] = ((raw[i] & 0xFF) << 8 | (raw[i] >> 8)) & max_val;
-        }
-    }
-
-    // 分配 RGB 数据的内存
-    RGB* rgb_data = (RGB*)malloc(width * height * sizeof(RGB));
-    if (!rgb_data) {
-        fprintf(stderr, "Memory allocation for RGB data failed.\n");
-        return NULL;
-    }
-
-    // 根据 Bayer Pattern 进行插值处理
-    for (U16 y = 0; y < height; y++) {
-        for (U16 x = 0; x < width; x++) {
-            RGB pixel = { 0, 0, 0 };
-            U32 val = 0;
-
-            // 插值计算
-            switch (pattern) {
-            case RGGB:
-                if ((y % 2 == 0) && (x % 2 == 0)) //R
-                {
-                    val = raw[y * width + x] >> bit_shift;
-                    pixel.r = clp_range(0, val, U8MAX);
-					pixel.g = 0;
-					pixel.b = 0;
-                }
-                else if ((y % 2 == 0) && (x % 2 == 1)) //GR
-                {
-                    val = raw[y * width + x] >> bit_shift;
-                    pixel.g = clp_range(0, val, U8MAX);
-                    pixel.r = 0;
-                    pixel.b = 0;
-                }
-                else if ((y % 2 == 1) && (x % 2 == 0)) //GB
-                {
-                    val = raw[y * width + x] >> bit_shift;
-                    pixel.g = clp_range(0, val, U8MAX);
-					pixel.r = 0;
-					pixel.b = 0;
-                }
-                else //B
-                {
-                    val = raw[y * width + x] >> bit_shift;
-                    pixel.b = clp_range(0, val, U8MAX);
-					pixel.r = 0;
-					pixel.g = 0;
-                }
-				break;
-            case BGGR:
-                if ((y % 2 == 0) && (x % 2 == 0)) //B
-                {
-					val = raw[y * width + x] >> bit_shift;
-					pixel.b = clp_range(0, val, U8MAX);
-					pixel.r = 0;
-					pixel.g = 0;
-                }
-                else if ((y % 2 == 0) && (x % 2 == 1)) //GB
-                {
-					val = raw[y * width + x] >> bit_shift;
-					pixel.g = clp_range(0, val, U8MAX);
-					pixel.r = 0;
-					pixel.b = 0;
-                }
-                else if ((y % 2 == 1) && (x % 2 == 0)) //GR
-                {
-					val = raw[y * width + x] >> bit_shift;
-					pixel.g = clp_range(0, val, U8MAX);
-					pixel.r = 0;
-					pixel.b = 0;
-                }
-                else //R
-                {
-					val = raw[y * width + x] >> bit_shift;
-					pixel.r = clp_range(0, val, U8MAX);
-					pixel.g = 0;
-					pixel.b = 0;
-                }
-                break;
-                // Other patterns (GRBG, GBRG, BGGR) can be implemented similarly
-            default:
-                fprintf(stderr, "Unsupported Bayer Pattern.\n");
-                free(rgb_data);
-                return NULL;
-            }
-
-            // 保存到 RGB 数据
-            rgb_data[y * width + x] = pixel;
-        }
-    }
-
-    return rgb_data;
-}
-
-
-
-U16* readraw(const char* filename, IMG_CONTEXT context, G_CONFIG cfg)
-{
-    int bytesPerPixel = (cfg.bit + 7) / 8;  // 计算每像素的字节数
-    int dataSize = context.width * context.height * bytesPerPixel;  // 数据总大小
-    U16* raw = (U16*)malloc(context.width * context.height * sizeof(U16));
-
-    FILE* rawFile = fopen(filename, "rb");
-    if (!rawFile) {
-        fprintf(stderr, "无法打开文件: %s\n", filename);
-        return NULL;
-    }
-
-    U8* buffer = (U8*)malloc(dataSize);
-    fread(buffer, 1, dataSize, rawFile);
-    fclose(rawFile);
-
-    for (int i = 0; i < context.width * context.height; i++) {
-		if (cfg.bit == 16) {
-			raw[i] = cfg.order == LITTLE_ENDIAN
-                ? buffer[i * 2] | (buffer[i * 2 + 1] << 8)
-                : (buffer[i * 2] << 8) | buffer[i * 2 + 1];
-        }
-        else {
-			raw[i] = buffer[i];
-        }
-
-		raw[i] = raw[i] << (cfg.bit - cfg.used_bit);
-    }
-
-    free(buffer);
-    return raw;
-}
 
 RGB* yyy2rgb_process(YUV* yuv, IMG_CONTEXT context, G_CONFIG cfg)
 {

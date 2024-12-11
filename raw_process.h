@@ -48,6 +48,10 @@ typedef struct _G_CONFIG
 {
 	U16 width;
 	U16 height;
+	U8 bit;
+	U8 used_bit;
+	U8 pattern;
+	U8 order;
 }G_CONFIG;
 
 
