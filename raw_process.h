@@ -24,6 +24,8 @@ typedef unsigned short U16;
 typedef short S16;
 typedef unsigned char U8;
 
+
+#define U64MAX (0xFFFFFFFFFFFFFFFF)
 #define U16MAX (0xFFFF)
 #define U8MAX (255)
 #define U8MIN (0)
@@ -48,10 +50,10 @@ typedef struct _G_CONFIG
 {
 	U16 width;
 	U16 height;
-	U8 bit;
-	U8 used_bit;
-	U8 pattern;
-	U8 order;
+
+	U8 img_num;
+	U8 search_range;
+	U8 search_step;
 }G_CONFIG;
 
 
@@ -80,6 +82,8 @@ typedef struct _IMG_CONTEXT
 
 	int PaddingSize;
 	U8* pad;
+
+
 }IMG_CONTEXT;
 
 
@@ -87,17 +91,18 @@ void load_cfg();
 
 int main();
 
-RGB* raw2rgb(U16* raw, IMG_CONTEXT context, G_CONFIG cfg);
+long long calculate_sad(RGB* plate, RGB* img, IMG_CONTEXT context, int dx, int dy);
 
-// 函数声明：读取 RAW 数据到一维数组
 
-U16* readraw(const char* filename, IMG_CONTEXT context, G_CONFIG cfg);
+void img_match(RGB* plate, RGB* img, IMG_CONTEXT context, G_CONFIG cfg);
 
 RGB* yyy2rgb_process(YUV* yuv, IMG_CONTEXT context, G_CONFIG cfg);
 
 U8 save_rgb(const char* filename, RGB* rgb, IMG_CONTEXT context, G_CONFIG cfg);
 
 void safe_free(void* p);
+
+float fast_sqrt(float number);
 
 void print_prog(U32 cur_pos, U32 tgt);
 
