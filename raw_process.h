@@ -15,6 +15,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <algorithm>
 
 typedef unsigned long long U64;
 typedef long long S64;
@@ -48,10 +49,8 @@ typedef struct _G_CONFIG
 {
 	U16 width;
 	U16 height;
-	U8 bit;
-	U8 used_bit;
-	U8 pattern;
-	U8 order;
+
+	U8 img_num;
 }G_CONFIG;
 
 

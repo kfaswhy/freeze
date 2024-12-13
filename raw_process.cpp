@@ -16,121 +16,95 @@ void load_cfg()
 {
 	//cfg.width = 2592;
 	//cfg.height = 1536;
+	cfg.img_num = 10;
 	return;
 }
 
-// 定义冻结函数，接收多帧图片并输出冻结效果图
-void freeze(vector<Mat>& frames, Mat& result)
-{
-	// 将每帧图片转换为灰度图像，便于计算光流场
-	vector<Mat> grayframe;
-	for (const auto& frame : frames)
-	{
-		Mat gray;
-		cvtColor(frame, gray, COLOR_BGR2GRAY); // 转为灰度
-		grayframe.push_back(gray); // 保存灰度图
-	}
+// 用于堆栈中间值去噪的函数
+Mat medianStackDenoise(const vector<Mat>& images) {
+	Mat result(images[0].size(), images[0].type()); // 创建结果图像，与输入图像的尺寸和类型相同
 
-	// 以第一帧灰度图作为基准帧，后续帧需对齐到该帧
-	Mat baseframe = grayframe[0];
-	vector<Mat> alignedframe; // 保存对齐后的帧
-	alignedframe.push_back(frames[0]); // 第一帧直接加入对齐帧列表
-
-	// 对其余帧进行光流计算和配准
-	for (size_t i = 1; i < grayframe.size(); ++i)
-	{
-		Mat flow, warped;
-		// 使用Farneback方法计算光流场，获取当前帧到基准帧的位移信息
-		calcOpticalFlowFarneback(baseframe, grayframe[i], flow,
-			0.5, 3, 15, 3, 5, 1.2, 0);
-
-		// 根据光流场生成像素映射表
-		Mat mapX(baseframe.size(), CV_32FC1); // X坐标映射表
-		Mat mapY(baseframe.size(), CV_32FC1); // Y坐标映射表
-		for (int y = 0; y < baseframe.rows; ++y)
-		{
-			for (int x = 0; x < baseframe.cols; ++x)
-			{
-				Point2f f = flow.at<Point2f>(y, x); // 光流位移
-				mapX.at<float>(y, x) = x + f.x;    // 映射到X坐标
-				mapY.at<float>(y, x) = y + f.y;    // 映射到Y坐标
+	// 遍历每个像素的所有图像，取中位值
+	for (int i = 0; i < images[0].rows; i++) { // 遍历每一行
+		for (int j = 0; j < images[0].cols; j++) { // 遍历每一列
+			vector<Vec3b> pixelValues; // 存储该像素点在所有图像中的 RGB 值
+			for (const auto& img : images) {
+				pixelValues.push_back(img.at<Vec3b>(i, j)); // 将每张图像中对应像素的 RGB 值加入数组
 			}
+
+			// 自定义比较函数，按 RGB 三个通道的值进行排序
+			sort(pixelValues.begin(), pixelValues.end(), [](const Vec3b& a, const Vec3b& b) {
+				for (int k = 0; k < 3; k++) { // 比较 RGB 三个通道的值
+					if (a[k] != b[k]) {
+						return a[k] < b[k]; // 若有不同，则按通道值大小排序
+					}
+				}
+				return false; // 如果 RGB 三个通道值相同，保持顺序
+				});
+
+			result.at<Vec3b>(i, j) = pixelValues[pixelValues.size() / 2]; // 取排序后的中位值作为结果像素值
 		}
-		 
-		// 根据映射表对当前帧进行重映射（即配准）
-		remap(frames[i], warped, mapX, mapY, INTER_LINEAR); // 使用双线性插值
-		alignedframe.push_back(warped); // 保存配准结果
 	}
-
-	// 对齐后的所有帧进行像素融合，计算平均值生成冻结效果
-	Mat fused = Mat::zeros(frames[0].size(), CV_32FC3); // 初始化为全零图像（32位浮点）
-
-	for (const auto& img : alignedframe)
-	{
-		Mat temp;
-		img.convertTo(temp, CV_32FC3); // 转为32位浮点以便参与累加
-		fused += temp; // 累加像素值
-	}
-
-	// 计算平均值，完成像素融合
-	fused /= static_cast<float>(alignedframe.size());
-	fused.convertTo(result, CV_8UC3); // 转回8位无符号整型，作为最终结果
+	return result; // 返回去噪后的图像
 }
 
-int main()
-{
-	vector<Mat> images;
+// 图像配准函数（基于模板匹配）
+Mat alignImages(const Mat& baseImage, const Mat& targetImage, int searchRange) {
+	Mat result;
 
-	// 读取一系列图片，保存到矢量容器中
-#if 0
-	images.push_back(imread("data\\2.bmp"));
-	images.push_back(imread("data\\3.bmp"));
-	images.push_back(imread("data\\4.bmp"));
-	images.push_back(imread("data\\5.bmp"));
-	images.push_back(imread("data\\6.bmp"));
-	images.push_back(imread("data\\7.bmp"));
-	images.push_back(imread("data\\8.bmp"));
-	images.push_back(imread("data\\9.bmp"));
-	images.push_back(imread("data\\10.bmp"));
-	images.push_back(imread("data\\11.bmp"));
-	images.push_back(imread("data\\12.bmp"));
-	images.push_back(imread("data\\13.bmp"));
-	images.push_back(imread("data\\14.bmp"));
-	images.push_back(imread("data\\15.bmp"));
-	images.push_back(imread("data\\16.bmp"));
-	images.push_back(imread("data\\17.bmp"));
-	images.push_back(imread("data\\18.bmp"));
-#endif
+	// 局部模板匹配（假设目标图像的位移较小，限制匹配范围在图像的中心区域）
+	int width = baseImage.cols / 2; // 计算中心区域宽度
+	int height = baseImage.rows / 2; // 计算中心区域高度
 
-#if 1
-	images.push_back(imread("data2\\1.bmp"));
-	images.push_back(imread("data2\\2.bmp"));
-	images.push_back(imread("data2\\3.bmp"));
-	images.push_back(imread("data2\\4.bmp"));
-	images.push_back(imread("data2\\5.bmp"));
-	images.push_back(imread("data2\\6.bmp"));
-	images.push_back(imread("data2\\7.bmp"));
-	images.push_back(imread("data2\\8.bmp"));
-	images.push_back(imread("data2\\9.bmp"));
-	images.push_back(imread("data2\\10.bmp"));
-	images.push_back(imread("data2\\11.bmp"));
+	Mat targetROI = targetImage(Rect(width / 4, height / 4, width, height)); // 选择目标图像的中心区域
+	Mat resultMat; // 保存模板匹配结果的矩阵
 
-#endif
+	// 使用模板匹配
+	matchTemplate(targetROI, baseImage, resultMat, TM_CCOEFF_NORMED); // 使用相关系数归一化方法进行模板匹配
+	Point maxLoc;
+	minMaxLoc(resultMat, nullptr, nullptr, nullptr, &maxLoc); // 获取匹配结果中响应值最大的点
 
+	// 计算平移矩阵并对齐图像
+	Mat translationMat = (Mat_<float>(2, 3) << 1, 0, maxLoc.x, 0, 1, maxLoc.y); // 平移矩阵
+	warpAffine(targetImage, result, translationMat, baseImage.size()); // 对目标图像进行平移变换，使其对齐基准图像
 
-	Mat result; // 用于存储冻结效果图
-	clock_t start = clock(); // 开始计时
-	freeze(images, result); // 调用冻结函数
-	clock_t end = clock(); // 结束计时
-	cout << "Time: " << (double)(end - start) << "ms" << endl; // 输出耗时
-
-	// 显示并保存结果
-	imshow("result", result); // 显示冻结效果图
-	imwrite("result.bmp", result); // 保存冻结效果图
-	waitKey(0); // 等待按键退出
-
-	return 0;
+	return result; // 返回对齐后的图像
 }
+
+int main() {
+	vector<Mat> images; // 用于存储输入图像
+	string folderPath = "data3/"; // 图像文件夹路径
+
+	// 读取 5 张图像
+	for (int i = 1; i <= 5; i++) {
+		string imagePath = folderPath + to_string(i) + ".bmp"; // 构造图像路径
+		Mat img = imread(imagePath); // 读取图像
+		if (img.empty()) { // 检查图像是否成功读取
+			cerr << "无法读取图像: " << imagePath << endl; // 输出错误信息
+			return -1; // 返回错误码
+		}
+		images.push_back(img); // 将读取的图像加入图像数组
+	}
+
+	// 对图片进行对齐
+	vector<Mat> alignedImages; // 存储对齐后的图像
+	alignedImages.push_back(images[0]); // 第一张图像作为基准图像
+	for (int i = 1; i < images.size(); i++) {
+		Mat aligned = alignImages(images[0], images[i], images[i].cols / 10); // 对齐其他图像
+		alignedImages.push_back(aligned); // 将对齐后的图像加入数组
+	}
+
+	// 堆栈中间值去噪
+	Mat denoisedImage = medianStackDenoise(alignedImages); // 对齐后的图像进行去噪
+
+	// 保存去噪后的结果
+	imwrite("denoised_image.bmp", denoisedImage); // 将去噪结果保存为图像文件
+
+	cout << "图像处理完成，去噪后的图像已保存为 denoised_image.bmp" << endl; // 输出完成信息
+
+	return 0; // 返回成功码
+}
+
 
 
 
