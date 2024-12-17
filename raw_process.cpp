@@ -1,8 +1,15 @@
 ﻿#include "raw_process.h"
 
+using namespace std;
+
+int img_num = 14; //图像数量
+int search_range = 20; // 模板匹配的最大范围
+
+int search_step = 1;  //模板匹配时移动的步长
+float search_area = 0.4; //计算匹配代价函数时的取样范围比例
+int search_sample = 2; //计算匹配代价函数时的下采样强度，1表示不做下采样
+
 int main() {
-    int img_num = 5;      // 默认处理3张图像
-    int search_range = 10;   // 默认对齐搜索范围为10像素
 
     // 要处理的图像文件路径数组
     const char* fileNames[] = {
@@ -10,7 +17,22 @@ int main() {
         "data3/2.bmp",
         "data3/3.bmp",
         "data3/4.bmp",
-        "data3/5.bmp"
+        "data3/5.bmp",
+        "data3/6.bmp",
+        "data3/7.bmp",
+        "data3/8.bmp",
+        "data3/9.bmp",
+        "data3/10.bmp",
+        "data3/11.bmp",
+        "data3/12.bmp",
+        "data3/13.bmp",
+        "data3/14.bmp",
+        "data3/15.bmp",
+        "data3/16.bmp",
+        "data3/17.bmp",
+        "data3/18.bmp",
+        "data3/19.bmp",
+        "data3/20.bmp"
     };
     int fileCount = sizeof(fileNames) / sizeof(fileNames[0]);  // 计算文件数量
 
@@ -20,30 +42,32 @@ int main() {
         return ERROR;
     }
 
+
     // 调用processImages函数处理图像
-    processImages(fileNames, img_num, search_range);
 
-    return 0;
-}
-
-
-// 处理图像流程：读取、对齐和去噪图像
-void processImages(const char** fileNames, int img_num, int searchRange) {
     Image** images = (Image**)malloc(img_num * sizeof(Image*));
     //int count = 0;
+
+    U8* data = (U8*)malloc(1112 * 900 * 3 * sizeof(U8));
 
     // 读取指定数量的图像文件
     for (int i = 0; i < img_num; ++i) {
         images[i] = readBMP(fileNames[i]);
+        memcpy(data, images[i]->data, 1112 * 900 * 3 * sizeof(U8));
+        float ret = getClarityEvaluation(data, images[i]->width, images[i]->height);
+        cout <<i+1<<". " << ret << endl;
     }
 
     int t0 = clock();
+
     // 对齐图像
     Image** alignedImages = (Image**)malloc(img_num * sizeof(Image*));
     alignedImages[0] = images[0];
+
+
     for (int i = 1; i < img_num; ++i) {
         alignedImages[i] = (Image*)malloc(sizeof(Image));
-        alignImages(images[0], images[i], searchRange, alignedImages[i]);
+        alignImages(images[0], images[i], search_range, alignedImages[i]);
     }
 
     // 对齐后的图像进行中值堆叠去噪
@@ -57,15 +81,49 @@ void processImages(const char** fileNames, int img_num, int searchRange) {
     writeBMP("denoised_image.bmp", &denoisedImage);
     printf("图像处理完成，去噪后的图像已保存为 denoised_image.bmp\n");
 
-    // 释放分配的内存
-    /*for (int i = 0; i < count; ++i) {
-        freeImage(images[i]);
-        if (i > 0) freeImage(alignedImages[i]);
-    }
-    freeImage(&denoisedImage);
-    free(images);
-    free(alignedImages);*/
+    return 0;
 }
+
+double getClarityEvaluation(uchar* data, int width, int height) {
+    // 将BGR数据转换为灰度
+    std::vector<double> grayscaleData(width * height);
+    for (int i = 0; i < width * height; ++i) {
+        grayscaleData[i] = 0.299 * data[3 * i] + 0.587 * data[3 * i + 1] + 0.114 * data[3 * i + 2];
+    }
+
+    // 应用Laplacian算子
+    std::vector<double> laplacianData(width * height, 0.0);
+    int laplacianKernel[3][3] = {
+        { 0,  1,  0 },
+        { 1, -4,  1 },
+        { 0,  1,  0 }
+    };
+
+    for (int y = 1; y < height - 1; ++y) {
+        for (int x = 1; x < width - 1; ++x) {
+            double sum = 0.0;
+            for (int ky = -1; ky <= 1; ++ky) {
+                for (int kx = -1; kx <= 1; ++kx) {
+                    int pixelPos = (y + ky) * width + (x + kx);
+                    sum += grayscaleData[pixelPos] * laplacianKernel[ky + 1][kx + 1];
+                }
+            }
+            laplacianData[y * width + x] = sum;
+        }
+    }
+
+    // 计算平均值
+    double meanValue = 0.0;
+    int count = 0;
+    for (double val : laplacianData) {
+        meanValue += std::abs(val); // 使用绝对值处理负数
+        ++count;
+    }
+    meanValue /= count;
+
+    return meanValue;
+}
+
 
 
 // 读取BMP文件，返回包含图像数据的Image结构体指针
@@ -195,36 +253,38 @@ void medianStackDenoise(Image** images, int numImages, Image* output) {
 }
 
 // 对齐图像：通过搜索最佳偏移量使目标图像与基准图像对齐
-void alignImages(const Image* baseImage, const Image* targetImage, int searchRange, Image* alignedImage) {
+void alignImages(const Image* baseImage, const Image* targetImage, int search_range, Image* alignedImage) {
     int bestDx = 0, bestDy = 0;
     int minError = INT_MAX;
 
     int centerX = baseImage->width / 2;
     int centerY = baseImage->height / 2;
 
+    float start = 0.5 - search_area / 2;
+    float end = 1 - start;
+
     // 遍历搜索范围内的所有偏移量，计算误差
-    for (int dy = -searchRange; dy <= searchRange; ++dy) {
-        for (int dx = -searchRange; dx <= searchRange; ++dx) {
+    for (int dy = -search_range; dy <= search_range; ++dy) {
+        for (int dx = -search_range; dx <= search_range; ++dx) {
             int error = 0;
 
-            for (int y = 0; y < baseImage->height; ++y) {
-                for (int x = 0; x < baseImage->width; ++x) {
+            for (int y = baseImage->height * start; y < baseImage->height * end; y += search_sample) {
+                for (int x = baseImage->width * start; x < baseImage->width * end; x += search_sample) {
                     int offsetX = x + dx;
                     int offsetY = y + dy;
 
                     if (offsetX >= 0 && offsetX < baseImage->width && offsetY >= 0 && offsetY < baseImage->height) {
+                        
                         int baseIndex = y * baseImage->width + x;
                         int targetIndex = offsetY * baseImage->width + offsetX;
 
                         RGB basePixel = baseImage->data[baseIndex];
                         RGB targetPixel = targetImage->data[targetIndex];
-
-                        int diffR = basePixel.r - targetPixel.r;
+        
                         int diffG = basePixel.g - targetPixel.g;
-                        int diffB = basePixel.b - targetPixel.b;
-
-                        //error += diffR * diffR + diffG * diffG + diffB * diffB;
-                        error += diffG * diffG;
+                        int diffR = basePixel.r - targetPixel.r;
+                        error += diffG * diffG+ diffR* diffR;
+                        
                     }
                 }
             }
