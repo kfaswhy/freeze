@@ -5,6 +5,8 @@
 #define DEBUG_MODE 1//需要调试时置1，否则置0
 
 #include <stdio.h>
+#include <iostream>
+#include <vector>
 #include <windows.h> 
 #include <time.h>
 #include <omp.h>
@@ -21,6 +23,8 @@ typedef int S32;
 typedef unsigned short U16;
 typedef short S16;
 typedef unsigned char U8;
+
+typedef unsigned char uchar;
 
 #define U16MAX (0xFFFF)
 #define U8MAX (255)
@@ -58,5 +62,6 @@ void freeImage(Image* img);                              // 释放图像的内存
 void medianStackDenoise(Image** images, int numImages, Image* output);  // 中值堆叠去噪
 void alignImages(const Image* baseImage, const Image* targetImage, int searchRange, Image* alignedImage);
 int main();
+double getClarityEvaluation(uchar* data, int width, int height);
 // 对齐图像
 void processImages(const char** fileNames, int searchNum, int searchRange);  // 图像处理流程
