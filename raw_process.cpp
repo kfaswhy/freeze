@@ -2,8 +2,11 @@
 
 using namespace std;
 
-int img_num = 14; //图像数量
-int search_range = 20; // 模板匹配的最大范围
+int height = 900;
+int width = 1112;
+
+int img_num = 5; //图像数量
+int search_range = 10; // 模板匹配的最大范围
 
 int search_step = 1;  //模板匹配时移动的步长
 float search_area = 0.4; //计算匹配代价函数时的取样范围比例
@@ -54,8 +57,8 @@ int main() {
     for (int i = 0; i < img_num; ++i) {
         images[i] = readBMP(fileNames[i]);
         memcpy(data, images[i]->data, 1112 * 900 * 3 * sizeof(U8));
-        float ret = getClarityEvaluation(data, images[i]->width, images[i]->height);
-        cout <<i+1<<". " << ret << endl;
+        float ret = getClarityEvaluation(data, width, height);
+        cout << i + 1 << ". " << ret << endl;
     }
 
     int t0 = clock();
@@ -139,8 +142,6 @@ Image* readBMP(const char* filename) {
     fread(header, sizeof(U8), 54, file);
 
     // 获取图像的宽度、高度和位深度
-    U32 width = *(U32*)&header[18];
-    U32 height = *(U32*)&header[22];
     U16 bitsPerPixel = *(U16*)&header[28];
 
     // 检查位深度是否为24位
@@ -158,8 +159,7 @@ Image* readBMP(const char* filename) {
 
     // 为Image结构体分配内存
     Image* img = (Image*)malloc(sizeof(Image));
-    img->width = width;
-    img->height = height;
+
     img->data = (RGB*)malloc(width * height * sizeof(RGB));
 
     // 将图像数据从BMP格式转换为RGB格式
@@ -185,19 +185,19 @@ void writeBMP(const char* filename, const Image* img) {
     U8 header[54] = { 0 };
     header[0] = 'B';
     header[1] = 'M';
-    U32 fileSize = 54 + img->width * img->height * 3;  // 文件总大小
+    U32 fileSize = 54 + width * height * 3;  // 文件总大小
     *(U32*)&header[2] = fileSize;
     *(U32*)&header[10] = 54;
     *(U32*)&header[14] = 40;
-    *(U32*)&header[18] = img->width;
-    *(U32*)&header[22] = img->height;
+    *(U32*)&header[18] = width;
+    *(U32*)&header[22] = height;
     *(U16*)&header[26] = 1;   // 颜色平面数
     *(U16*)&header[28] = 24;  // 每像素位深度
 
     fwrite(header, sizeof(U8), 54, file);  // 写入文件头
 
     // 写入像素数据
-    for (size_t i = 0; i < img->width * img->height; ++i) {
+    for (size_t i = 0; i < width * height; ++i) {
         fwrite(&img->data[i].b, sizeof(U8), 1, file);
         fwrite(&img->data[i].g, sizeof(U8), 1, file);
         fwrite(&img->data[i].r, sizeof(U8), 1, file);
@@ -216,16 +216,16 @@ void freeImage(Image* img) {
 
 // 中值堆叠去噪：对多张图像进行去噪处理，取每个像素点在所有图像中对应通道的中值
 void medianStackDenoise(Image** images, int numImages, Image* output) {
-    int width = images[0]->width;
-    int height = images[0]->height;
 
-    output->width = width;
-    output->height = height;
     output->data = (RGB*)malloc(width * height * sizeof(RGB));
 
     for (int i = 0; i < height; ++i) {
         for (int j = 0; j < width; ++j) {
-            U8 red[5], green[5], blue[5];
+            //U8 red[5], green[5], blue[5];
+
+            U8* red = (U8*)malloc(img_num * sizeof(U8));
+            U8* green = (U8*)malloc(img_num * sizeof(U8));
+            U8* blue = (U8*)malloc(img_num * sizeof(U8));
 
             // 获取每张图像对应像素点的RGB值
             for (int k = 0; k < numImages; ++k) {
@@ -257,8 +257,8 @@ void alignImages(const Image* baseImage, const Image* targetImage, int search_ra
     int bestDx = 0, bestDy = 0;
     int minError = INT_MAX;
 
-    int centerX = baseImage->width / 2;
-    int centerY = baseImage->height / 2;
+    int centerX = width / 2;
+    int centerY = height / 2;
 
     float start = 0.5 - search_area / 2;
     float end = 1 - start;
@@ -268,15 +268,15 @@ void alignImages(const Image* baseImage, const Image* targetImage, int search_ra
         for (int dx = -search_range; dx <= search_range; ++dx) {
             int error = 0;
 
-            for (int y = baseImage->height * start; y < baseImage->height * end; y += search_sample) {
-                for (int x = baseImage->width * start; x < baseImage->width * end; x += search_sample) {
+            for (int y = height * start; y < height * end; y += search_sample) {
+                for (int x = width * start; x < width * end; x += search_sample) {
                     int offsetX = x + dx;
                     int offsetY = y + dy;
 
-                    if (offsetX >= 0 && offsetX < baseImage->width && offsetY >= 0 && offsetY < baseImage->height) {
+                    if (offsetX >= 0 && offsetX < width && offsetY >= 0 && offsetY < height) {
                         
-                        int baseIndex = y * baseImage->width + x;
-                        int targetIndex = offsetY * baseImage->width + offsetX;
+                        int baseIndex = y * width + x;
+                        int targetIndex = offsetY * width + offsetX;
 
                         RGB basePixel = baseImage->data[baseIndex];
                         RGB targetPixel = targetImage->data[targetIndex];
@@ -299,23 +299,22 @@ void alignImages(const Image* baseImage, const Image* targetImage, int search_ra
 
     LOG("%d,%d",bestDx,bestDy);
 
-    alignedImage->width = baseImage->width;
-    alignedImage->height = baseImage->height;
-    alignedImage->data = (RGB*)malloc(baseImage->width * baseImage->height * sizeof(RGB));
+
+    alignedImage->data = (RGB*)malloc(width * height * sizeof(RGB));
 
     // 应用最佳偏移量来对齐目标图像
-    for (int y = 0; y < baseImage->height; ++y) {
-        for (int x = 0; x < baseImage->width; ++x) {
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
             int offsetX = x + bestDx;
             int offsetY = y + bestDy;
 
-            if (offsetX >= 0 && offsetX < baseImage->width && offsetY >= 0 && offsetY < baseImage->height) {
-                int baseIndex = y * baseImage->width + x;
-                int targetIndex = offsetY * baseImage->width + offsetX;
+            if (offsetX >= 0 && offsetX < width && offsetY >= 0 && offsetY < height) {
+                int baseIndex = y * width + x;
+                int targetIndex = offsetY * width + offsetX;
                 alignedImage->data[baseIndex] = targetImage->data[targetIndex];
             }
             else {
-                int baseIndex = y * baseImage->width + x;
+                int baseIndex = y * width + x;
                 alignedImage->data[baseIndex].r = 0;
                 alignedImage->data[baseIndex].g = 0;
                 alignedImage->data[baseIndex].b = 0;
