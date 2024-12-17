@@ -50,7 +50,7 @@ typedef struct {
 
 // 定义图像结构体，包含图像宽度、高度和图像数据
 typedef struct {
-    U16 width, height;  // 图像的宽度和高度
+    //U16 width, height;  // 图像的宽度和高度
     RGB* data;          // 图像的像素数据，数组中每个元素表示一个RGB像素
 } Image;
 
