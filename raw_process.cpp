@@ -6,10 +6,10 @@ int height = 900;
 int width = 1112;
 
 int img_num = 5; //图像数量
-int search_range = 10; // 模板匹配的最大范围
+int search_range = 15; // 模板匹配的最大范围
 
 int search_step = 1;  //模板匹配时移动的步长
-float search_area = 0.4; //计算匹配代价函数时的取样范围比例
+float search_area = 0.6; //计算匹配代价函数时的取样范围比例
 int search_sample = 2; //计算匹配代价函数时的下采样强度，1表示不做下采样
 
 int main() {
@@ -44,24 +44,36 @@ int main() {
         LOG("image num error.");
         return ERROR;
     }
-
-
-    // 调用processImages函数处理图像
-
     Image** images = (Image**)malloc(img_num * sizeof(Image*));
-    //int count = 0;
-
-    U8* data = (U8*)malloc(1112 * 900 * 3 * sizeof(U8));
+    uchar* data = (uchar*)malloc(1112 * 900 * 3 * sizeof(uchar));
 
     // 读取指定数量的图像文件
     for (int i = 0; i < img_num; ++i) {
         images[i] = readBMP(fileNames[i]);
-        memcpy(data, images[i]->data, 1112 * 900 * 3 * sizeof(U8));
+        memcpy(data, images[i]->data, 1112 * 900 * 3 * sizeof(uchar));
         float ret = getClarityEvaluation(data, width, height);
         cout << i + 1 << ". " << ret << endl;
     }
 
     int t0 = clock();
+    
+    //img2uchar
+    uchar** u8img = (uchar**)malloc(img_num * sizeof(uchar*));
+    for (int i = 0; i < img_num; ++i) 
+    {
+        u8img[i] = (uchar*)malloc(width * height * 3 * sizeof(uchar));
+        memcpy(u8img[i], images[i]->data, width * height * 3 * sizeof(uchar));
+    }
+
+
+    //接收uchar** u8img格式数据
+    //转为Image结构
+    for (int i = 0; i < img_num; ++i)
+    {
+        free(images[i]->data);
+        images[i]->data = (RGB*)malloc(width * height * sizeof(RGB));
+        memcpy(images[i]->data, u8img[i], width * height * 3 * sizeof(uchar));
+    }
 
     // 对齐图像
     Image** alignedImages = (Image**)malloc(img_num * sizeof(Image*));
@@ -70,18 +82,26 @@ int main() {
 
     for (int i = 1; i < img_num; ++i) {
         alignedImages[i] = (Image*)malloc(sizeof(Image));
-        alignImages(images[0], images[i], search_range, alignedImages[i]);
+        alignImages(images[0], images[i], alignedImages[i]);
     }
 
     // 对齐后的图像进行中值堆叠去噪
-    Image denoisedImage;
-    medianStackDenoise(alignedImages, img_num, &denoisedImage);
+    Image *denoisedImage= (Image*)malloc(width * height * sizeof(Image));;
+    medianStackDenoise(alignedImages, denoisedImage);
+
+    //降噪图转为U8
+    uchar* img_nr = (uchar*)malloc(width * height * 3 * sizeof(uchar));
+    memcpy(img_nr, denoisedImage, width * height * 3 * sizeof(uchar));
+
+    //结束，输出U8格式降噪图
 
     int t1 = clock();
-    LOG("time_used = %.02f.", ((float)t1 - t0) / 1000);
+
+    
+    LOG("time_used = %.02f. s", ((float)t1 - t0) / 1000);
 
     // 保存去噪后的图像
-    writeBMP("denoised_image.bmp", &denoisedImage);
+    writeBMP("denoised_image.bmp", denoisedImage);
     printf("图像处理完成，去噪后的图像已保存为 denoised_image.bmp\n");
 
     return 0;
@@ -127,8 +147,6 @@ double getClarityEvaluation(uchar* data, int width, int height) {
     return meanValue;
 }
 
-
-
 // 读取BMP文件，返回包含图像数据的Image结构体指针
 Image* readBMP(const char* filename) {
     FILE* file = fopen(filename, "rb");
@@ -138,8 +156,8 @@ Image* readBMP(const char* filename) {
     }
 
     // 读取BMP文件头
-    U8 header[54];
-    fread(header, sizeof(U8), 54, file);
+    uchar header[54];
+    fread(header, sizeof(uchar), 54, file);
 
     // 获取图像的宽度、高度和位深度
     U16 bitsPerPixel = *(U16*)&header[28];
@@ -153,8 +171,8 @@ Image* readBMP(const char* filename) {
 
     // 计算图像数据的大小
     size_t dataSize = width * height * 3;
-    U8* data = (U8*)malloc(dataSize);
-    fread(data, sizeof(U8), dataSize, file);
+    uchar* data = (uchar*)malloc(dataSize);
+    fread(data, sizeof(uchar), dataSize, file);
     fclose(file);
 
     // 为Image结构体分配内存
@@ -182,7 +200,7 @@ void writeBMP(const char* filename, const Image* img) {
     }
 
     // 写入BMP文件头
-    U8 header[54] = { 0 };
+    uchar header[54] = { 0 };
     header[0] = 'B';
     header[1] = 'M';
     U32 fileSize = 54 + width * height * 3;  // 文件总大小
@@ -194,13 +212,13 @@ void writeBMP(const char* filename, const Image* img) {
     *(U16*)&header[26] = 1;   // 颜色平面数
     *(U16*)&header[28] = 24;  // 每像素位深度
 
-    fwrite(header, sizeof(U8), 54, file);  // 写入文件头
+    fwrite(header, sizeof(uchar), 54, file);  // 写入文件头
 
     // 写入像素数据
     for (size_t i = 0; i < width * height; ++i) {
-        fwrite(&img->data[i].b, sizeof(U8), 1, file);
-        fwrite(&img->data[i].g, sizeof(U8), 1, file);
-        fwrite(&img->data[i].r, sizeof(U8), 1, file);
+        fwrite(&img->data[i].b, sizeof(uchar), 1, file);
+        fwrite(&img->data[i].g, sizeof(uchar), 1, file);
+        fwrite(&img->data[i].r, sizeof(uchar), 1, file);
     }
 
     fclose(file);  // 关闭文件
@@ -215,20 +233,20 @@ void freeImage(Image* img) {
 }
 
 // 中值堆叠去噪：对多张图像进行去噪处理，取每个像素点在所有图像中对应通道的中值
-void medianStackDenoise(Image** images, int numImages, Image* output) {
+void medianStackDenoise(Image** images, Image* output) {
 
     output->data = (RGB*)malloc(width * height * sizeof(RGB));
 
     for (int i = 0; i < height; ++i) {
         for (int j = 0; j < width; ++j) {
-            //U8 red[5], green[5], blue[5];
+            //uchar red[5], green[5], blue[5];
 
-            U8* red = (U8*)malloc(img_num * sizeof(U8));
-            U8* green = (U8*)malloc(img_num * sizeof(U8));
-            U8* blue = (U8*)malloc(img_num * sizeof(U8));
+            uchar* red = (uchar*)malloc(img_num * sizeof(uchar));
+            uchar* green = (uchar*)malloc(img_num * sizeof(uchar));
+            uchar* blue = (uchar*)malloc(img_num * sizeof(uchar));
 
             // 获取每张图像对应像素点的RGB值
-            for (int k = 0; k < numImages; ++k) {
+            for (int k = 0; k < img_num; ++k) {
                 int index = i * width + j;
                 red[k] = images[k]->data[index].r;
                 green[k] = images[k]->data[index].g;
@@ -236,24 +254,24 @@ void medianStackDenoise(Image** images, int numImages, Image* output) {
             }
 
             // 对RGB通道分别进行排序
-            for (int m = 0; m < numImages; ++m) {
-                for (int n = m + 1; n < numImages; ++n) {
-                    if (red[m] > red[n]) { U8 temp = red[m]; red[m] = red[n]; red[n] = temp; }
-                    if (green[m] > green[n]) { U8 temp = green[m]; green[m] = green[n]; green[n] = temp; }
-                    if (blue[m] > blue[n]) { U8 temp = blue[m]; blue[m] = blue[n]; blue[n] = temp; }
+            for (int m = 0; m < img_num; ++m) {
+                for (int n = m + 1; n < img_num; ++n) {
+                    if (red[m] > red[n]) { uchar temp = red[m]; red[m] = red[n]; red[n] = temp; }
+                    if (green[m] > green[n]) { uchar temp = green[m]; green[m] = green[n]; green[n] = temp; }
+                    if (blue[m] > blue[n]) { uchar temp = blue[m]; blue[m] = blue[n]; blue[n] = temp; }
                 }
             }
 
             int index = i * width + j;
-            output->data[index].r = red[numImages / 2];  // 取中值
-            output->data[index].g = green[numImages / 2];
-            output->data[index].b = blue[numImages / 2];
+            output->data[index].r = red[img_num / 2];  // 取中值
+            output->data[index].g = green[img_num / 2];
+            output->data[index].b = blue[img_num / 2];
         }
     }
 }
 
 // 对齐图像：通过搜索最佳偏移量使目标图像与基准图像对齐
-void alignImages(const Image* baseImage, const Image* targetImage, int search_range, Image* alignedImage) {
+void alignImages(const Image* baseImage, const Image* targetImage, Image* alignedImage) {
     int bestDx = 0, bestDy = 0;
     int minError = INT_MAX;
 
@@ -274,16 +292,16 @@ void alignImages(const Image* baseImage, const Image* targetImage, int search_ra
                     int offsetY = y + dy;
 
                     if (offsetX >= 0 && offsetX < width && offsetY >= 0 && offsetY < height) {
-                        
+
                         int baseIndex = y * width + x;
                         int targetIndex = offsetY * width + offsetX;
 
                         RGB basePixel = baseImage->data[baseIndex];
                         RGB targetPixel = targetImage->data[targetIndex];
-        
+
                         int diffG = basePixel.g - targetPixel.g;
                         int diffR = basePixel.r - targetPixel.r;
-                        error += diffG * diffG+ diffR* diffR;
+                        error += diffG * diffG + diffR * diffR;
                         
                     }
                 }

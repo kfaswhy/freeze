@@ -54,14 +54,16 @@ typedef struct {
     RGB* data;          // 图像的像素数据，数组中每个元素表示一个RGB像素
 } Image;
 
+int main();
+
+double getClarityEvaluation(uchar* data, int width, int height);
 
 Image* readBMP(const char* filename);
 
-void writeBMP(const char* filename, const Image* img);   // 将Image结构体数据写入BMP文件
-void freeImage(Image* img);                              // 释放图像的内存
-void medianStackDenoise(Image** images, int numImages, Image* output);  // 中值堆叠去噪
-void alignImages(const Image* baseImage, const Image* targetImage, int searchRange, Image* alignedImage);
-int main();
-double getClarityEvaluation(uchar* data, int width, int height);
-// 对齐图像
-void processImages(const char** fileNames, int searchNum, int searchRange);  // 图像处理流程
+void writeBMP(const char* filename, const Image* img);
+
+void freeImage(Image* img);
+
+void medianStackDenoise(Image** images, Image* output);
+
+void alignImages(const Image* baseImage, const Image* targetImage, Image* alignedImage);
