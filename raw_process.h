@@ -6,14 +6,14 @@
 
 #include <stdio.h>
 #include <iostream>
-#include <vector>
-#include <windows.h> 
-#include <time.h>
-#include <omp.h>
-#include <stdint.h>
+#include <vector>//
+//#include <windows.h> 
+//#include <time.h>
+//#include <omp.h>
+//#include <stdint.h>
 
-#include <stdlib.h>
-#include <math.h>
+//#include <stdlib.h>
+//#include <math.h>
 
 
 typedef unsigned long long U64;
@@ -25,6 +25,7 @@ typedef short S16;
 typedef unsigned char U8;
 
 typedef unsigned char uchar;
+
 
 #define U16MAX (0xFFFF)
 #define U8MAX (255)
