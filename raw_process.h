@@ -10,6 +10,7 @@
 #include <time.h>
 #include <omp.h>
 #include <stdint.h>
+#include <cmath>
 
 #include <opencv2/opencv.hpp>
 #include <fstream>
