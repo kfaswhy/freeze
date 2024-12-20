@@ -2,15 +2,15 @@
 
 using namespace std;
 
-int height = 900;
-int width = 1112;
+int height = 1080;
+int width = 1334;
 
-int img_num = 5; //图像数量
+int img_num = 10; //图像数量
 int search_range = 15; // 模板匹配的最大范围
 
 int search_step = 1;  //模板匹配时移动的步长
-float search_area = 0.6; //计算匹配代价函数时的取样范围比例
-int search_sample = 2; //计算匹配代价函数时的下采样强度，1表示不做下采样
+float search_area = 0.8; //计算匹配代价函数时的取样范围比例
+int search_sample = 1; //计算匹配代价函数时的下采样强度，1表示不做下采样
 
 int main() {
 
@@ -45,12 +45,12 @@ int main() {
         return ERROR;
     }
     Image** images = (Image**)malloc(img_num * sizeof(Image*));
-    uchar* data = (uchar*)malloc(1112 * 900 * 3 * sizeof(uchar));
+    uchar* data = (uchar*)malloc(width * height * 3 * sizeof(uchar));
 
     // 读取指定数量的图像文件
     for (int i = 0; i < img_num; ++i) {
         images[i] = readBMP(fileNames[i]);
-        memcpy(data, images[i]->data, 1112 * 900 * 3 * sizeof(uchar));
+        memcpy(data, images[i]->data, width * height * 3 * sizeof(uchar));
         float ret = getClarityEvaluation(data, width, height);
         cout << i + 1 << ". " << ret << endl;
     }
