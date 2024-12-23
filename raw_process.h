@@ -6,14 +6,16 @@
 
 #include <stdio.h>
 #include <iostream>
-#include <vector>//
+#include <vector>
 //#include <windows.h> 
 //#include <time.h>
 //#include <omp.h>
 //#include <stdint.h>
-
+//
 //#include <stdlib.h>
 //#include <math.h>
+
+#include <opencv2/opencv.hpp>
 
 
 typedef unsigned long long U64;
@@ -43,28 +45,12 @@ typedef unsigned char uchar;
 
 #define LOG(...) {printf("%s [%d]: ", __FUNCTION__, __LINE__); printf(__VA_ARGS__); printf("\n"); }
 
+U8* read_img(const char* file_name);
 
-// 定义RGB结构体，用于存储每个像素的红绿蓝值
-typedef struct {
-    U8 r, g, b;  // 红色、绿色、蓝色分量
-} RGB;
+U8* save_img(const char* file_name, U8* img);
 
-// 定义图像结构体，包含图像宽度、高度和图像数据
-typedef struct {
-    //U16 width, height;  // 图像的宽度和高度
-    RGB* data;          // 图像的像素数据，数组中每个元素表示一个RGB像素
-} Image;
+U8* medianStackDenoise(U8** images);
 
-int main();
+U8* alignImages(U8* baseImage, U8* targetImage);
 
-double getClarityEvaluation(uchar* data, int width, int height);
 
-Image* readBMP(const char* filename);
-
-void writeBMP(const char* filename, const Image* img);
-
-void freeImage(Image* img);
-
-void medianStackDenoise(Image** images, Image* output);
-
-void alignImages(const Image* baseImage, const Image* targetImage, Image* alignedImage);
