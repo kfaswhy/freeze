@@ -5,24 +5,45 @@ using namespace std;
 const int height = 900;
 const int width = 1112;
 
-const int img_num = 5; //图像数量
+const int total_num = 5; //图像总数量
+const int img_num = 5; //筛选出的图像数量
 const int search_range = 15; // 模板匹配的最大范围
 
 const int search_step = 1;  //模板匹配时移动的步长
 const float search_area = 0.5; //计算匹配代价函数时的取样范围比例
 const int search_sample = 3; //计算匹配代价函数时的下采样强度，1表示不做下采样
 
+// 要处理的图像文件路径数组
+const char* fileNames[] = {
+    "data/1.bmp",
+    "data/2.bmp",
+    "data/3.bmp",
+    "data/4.bmp",
+    "data/5.bmp",
+    "data/6.bmp",
+    "data/7.bmp",
+    "data/8.bmp",
+    "data/9.bmp",
+    "data/10.bmp",
+    "data/11.bmp",
+    "data/12.bmp",
+    "data/13.bmp",
+    "data/14.bmp",
+    "data/15.bmp",
+    "data/16.bmp",
+    "data/17.bmp",
+    "data/18.bmp",
+    "data/19.bmp",
+    "data/20.bmp"
+};
+
 int main() 
 {
+    int j = 0;
+    int t0 = clock();
+    select_images();
+    int t1 = clock();
 
-    // 要处理的图像文件路径数组
-    const char* fileNames[] = {
-        "data3/1.bmp",
-        "data3/2.bmp",
-        "data3/3.bmp",
-        "data3/4.bmp",
-        "data3/5.bmp"
-    };
 
     U8** img = (U8**)malloc(img_num * sizeof(U8*));
 
@@ -31,7 +52,7 @@ int main()
         img[i] = read_img(fileNames[i]);
     }
 
-    int t0 = clock();
+    
 
     // 对齐图像
     U8** alignedImages = (U8**)malloc(img_num * sizeof(U8*));
@@ -44,12 +65,143 @@ int main()
     //时域中值滤波
     U8 *denoisedImage= medianStackDenoise(alignedImages);
 
-    int t1 = clock();
+
+    
     LOG("time_used = %.02f. s", ((float)t1 - t0) / 1000);
 
     save_img("denoisedImage.jpg", denoisedImage);
 
     return 0;
+}
+
+void select_images()
+{
+    U8** all_img = (U8**)malloc(total_num * sizeof(U8*));
+    double *clarity = (double*)malloc(total_num * sizeof(double));
+    double max_clarity = 0.0;
+    U8 max_index = 0;
+
+    for (int i = 0; i < total_num; ++i)
+    {
+        all_img[i] = read_img(fileNames[i]);
+        clarity[i] = getClarityEvaluation(all_img[i]);
+        if(clarity[i] > max_clarity)
+        {
+            max_clarity = clarity[i];
+            max_index = i;
+        }
+
+        LOG("%s: %.03f.", fileNames[i], clarity[i]);
+    }
+
+    LOG("max: %s, clarify = %.3f ", fileNames[max_index], max_clarity);
+
+    U8* index_select = (U8*)malloc(img_num * sizeof(U8));
+    index_select[0] = max_index;
+	U8 num_selected = 1; //已选择的图像数量
+
+    //向后查找
+    U8 is_stop = 0; //查找停止标记
+    U8 is_skip = 0; //跳过标记
+    U8 back = max_index + 1; //序列终点
+    while (is_stop == 0)
+    {
+        if (num_selected >= img_num || back >= total_num)
+        {
+            is_stop = 1;
+            //LOG("num_selected = %d, back = %d. break.", num_selected, back);
+            break;
+        }
+
+        if (is_skip == 1)
+        {
+            back++;
+        }
+        
+        //LOG("----------------------------");
+        //LOG("back = %d. ", back);
+        if (is_ok(max_clarity, clarity[back]))
+        {
+            //LOG("max = %.3f, clarity[%d] = %.3f. OK!", max_clarity, back, clarity[back]);
+            index_select[num_selected] = back;
+            num_selected++;
+            back++;
+        }
+        else
+        {
+            //LOG("max = %.3f, clarity[%d] = %.3f. FAILED!!", max_clarity, back, clarity[back]);
+            //LOG("skip = %d.", is_skip);
+            if (!is_skip) //如果此前未跳过
+            {
+                is_skip = 1;
+                back++;
+            }
+            else //如果跳过一次
+            {
+                is_stop = 1;
+                break;
+            }
+        }
+    }
+
+    //向后查找
+    is_stop = 0; //查找停止标记
+    is_skip = 0; //跳过标记
+    U8 forward = max_index - 1; //前序起点
+    while (is_stop == 0)
+    {
+        if (num_selected >= img_num || forward >= total_num)
+        {
+            is_stop = 1;
+            //LOG("num_selected = %d, forward = %d. break.", num_selected, forward);
+            break;
+        }
+
+        if (is_skip == 1)
+        {
+            forward--;
+        }
+
+        //LOG("----------------------------");
+        //LOG("forward = %d. ", forward);
+        if (is_ok(max_clarity, clarity[forward]))
+        {
+            //LOG("max = %.3f, clarity[%d] = %.3f. OK!", max_clarity, forward, clarity[forward]);
+            index_select[num_selected] = forward;
+            num_selected++;
+            forward--;
+        }
+        else
+        {
+            //LOG("max = %.3f, clarity[%d] = %.3f. FAILED!!", max_clarity, forward, clarity[forward]);
+            //LOG("skip = %d.", is_skip);
+            if (!is_skip) //如果此前未跳过
+            {
+                is_skip = 1;
+                forward--;
+            }
+            else //如果跳过一次
+            {
+                is_stop = 1;
+                break;
+            }
+        }
+    }
+
+   
+
+
+    for (int i = 0; i < num_selected; i++)
+    {
+        LOG("%s: %.03f.", fileNames[index_select[i]], clarity[index_select[i]]);
+    }
+
+}
+
+U8 is_ok(double base, double test)
+{
+    
+    return (test >= (base - 1));
 }
 
 U8* read_img(const char* file_name) {
@@ -225,4 +377,47 @@ U8* alignImages(U8* baseImage, U8* targetImage) {
     //save_img("xxxxx.jpg", alignedImage); 
 
     return alignedImage;
+}
+
+
+
+double getClarityEvaluation(uchar* data) 
+{
+    // 将BGR数据转换为灰度
+    std::vector<double> grayscaleData(width * height);
+    for (int i = 0; i < width * height; ++i) {
+        grayscaleData[i] = 0.299 * data[3 * i] + 0.587 * data[3 * i + 1] + 0.114 * data[3 * i + 2];
+    }
+
+    // 应用Laplacian算子
+    std::vector<double> laplacianData(width * height, 0.0);
+    int laplacianKernel[3][3] = {
+        { 0,  1,  0 },
+        { 1, -4,  1 },
+        { 0,  1,  0 }
+    };
+
+    for (int y = 1; y < height - 1; ++y) {
+        for (int x = 1; x < width - 1; ++x) {
+            double sum = 0.0;
+            for (int ky = -1; ky <= 1; ++ky) {
+                for (int kx = -1; kx <= 1; ++kx) {
+                    int pixelPos = (y + ky) * width + (x + kx);
+                    sum += grayscaleData[pixelPos] * laplacianKernel[ky + 1][kx + 1];
+                }
+            }
+            laplacianData[y * width + x] = sum;
+        }
+    }
+
+    // 计算平均值
+    double meanValue = 0.0;
+    int count = 0;
+    for (double val : laplacianData) {
+        meanValue += std::abs(val); // 使用绝对值处理负数
+        ++count;
+    }
+    meanValue /= count;
+
+    return meanValue;
 }

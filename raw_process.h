@@ -45,6 +45,12 @@ typedef unsigned char uchar;
 
 #define LOG(...) {printf("%s [%d]: ", __FUNCTION__, __LINE__); printf(__VA_ARGS__); printf("\n"); }
 
+int main();
+
+void select_images();
+
+U8 is_ok(double base, double test);
+
 U8* read_img(const char* file_name);
 
 U8* save_img(const char* file_name, U8* img);
@@ -52,5 +58,7 @@ U8* save_img(const char* file_name, U8* img);
 U8* medianStackDenoise(U8** images);
 
 U8* alignImages(U8* baseImage, U8* targetImage);
+
+double getClarityEvaluation(uchar* data);
 
 
