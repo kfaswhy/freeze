@@ -47,7 +47,7 @@ typedef unsigned char uchar;
 
 int main();
 
-void select_images();
+U8** select_images();
 
 U8 is_ok(double base, double test);
 

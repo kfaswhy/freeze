@@ -5,13 +5,14 @@ using namespace std;
 const int height = 900;
 const int width = 1112;
 
-const int total_num = 5; //图像总数量
-const int img_num = 5; //筛选出的图像数量
+const int total_num = 5; //输入图像总数量
 const int search_range = 15; // 模板匹配的最大范围
 
 const int search_step = 1;  //模板匹配时移动的步长
 const float search_area = 0.5; //计算匹配代价函数时的取样范围比例
 const int search_sample = 3; //计算匹配代价函数时的下采样强度，1表示不做下采样
+
+int img_num = 0; //筛选出的图像数量
 
 // 要处理的图像文件路径数组
 const char* fileNames[] = {
@@ -34,25 +35,16 @@ const char* fileNames[] = {
     "data/17.bmp",
     "data/18.bmp",
     "data/19.bmp",
-    "data/20.bmp"
+    "data/20.bmp",
+    "data/21.bmp",
+    "data/22.bmp"
 };
 
 int main() 
 {
-    int j = 0;
+    U8** img = select_images();
+
     int t0 = clock();
-    select_images();
-    int t1 = clock();
-
-
-    U8** img = (U8**)malloc(img_num * sizeof(U8*));
-
-    for (int i = 0; i < img_num; ++i)
-    {
-        img[i] = read_img(fileNames[i]);
-    }
-
-    
 
     // 对齐图像
     U8** alignedImages = (U8**)malloc(img_num * sizeof(U8*));
@@ -65,16 +57,67 @@ int main()
     //时域中值滤波
     U8 *denoisedImage= medianStackDenoise(alignedImages);
 
-
-    
-    LOG("time_used = %.02f. s", ((float)t1 - t0) / 1000);
+    int t1 = clock();
+    LOG("time_used = %.02f. ", ((float)t1 - t0) / 1000);
 
     save_img("denoisedImage.jpg", denoisedImage);
 
     return 0;
 }
 
-void select_images()
+U8** select_images()
+{
+    U8** all_img = (U8**)malloc(total_num * sizeof(U8*));
+    double* clarity = (double*)malloc(total_num * sizeof(double));
+    double max_clarity = 0.0;
+    U8 max_index = 0;
+
+    for (int i = 0; i < total_num; ++i)
+    {
+        all_img[i] = read_img(fileNames[i]);
+        clarity[i] = getClarityEvaluation(all_img[i]);
+        if (clarity[i] > max_clarity)
+        {
+            max_clarity = clarity[i];
+            max_index = i;
+        }
+
+        LOG("%s: %.03f.", fileNames[i], clarity[i]);
+    }
+
+    LOG("max: %s, clarify = %.3f ", fileNames[max_index], max_clarity);
+
+    U8* index_select = (U8*)malloc(total_num * sizeof(U8));
+    U8 num_selected = 0; //已选择的图像数量
+    
+    for (int i = 0; i < total_num; ++i)
+    {
+        if (is_ok(max_clarity, clarity[i]))
+        {
+            index_select[num_selected] = i;
+            num_selected++;
+        }
+    }
+
+    img_num = num_selected;
+
+    for (int i = 0; i < num_selected; i++)
+    {
+        LOG("%s: %.03f.", fileNames[index_select[i]], clarity[index_select[i]]);
+    }
+
+    U8** img = (U8**)malloc(img_num * sizeof(U8*));
+
+    for (int i = 0; i < num_selected; ++i)
+    {
+        img[i] = read_img(fileNames[index_select[i]]);
+    }
+
+    return img;
+}
+
+
+void select_images_advanced()
 {
     U8** all_img = (U8**)malloc(total_num * sizeof(U8*));
     double *clarity = (double*)malloc(total_num * sizeof(double));
@@ -201,7 +244,7 @@ void select_images()
 U8 is_ok(double base, double test)
 {
     
-    return (test >= (base - 1));
+    return (test >= (base - 2));
 }
 
 U8* read_img(const char* file_name) {
